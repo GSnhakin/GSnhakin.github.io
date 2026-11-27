@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KIN Laundry - Giặt Sấy Nhà Kin | Quản Lý & Thống Kê</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Thông báo Toast (Thay thế alert) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Modal Xác nhận (Thay thế confirm) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 transform transition-all">
+            <div class="flex items-center gap-3 text-amber-600 mb-3">
+                <div class="p-2.5 bg-amber-50 rounded-xl">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <h3 id="confirm-title" class="text-lg font-bold text-slate-800">Xác nhận thao tác</h3>
+            </div>
+            <p id="confirm-message" class="text-slate-600 text-sm leading-relaxed mb-6">Bạn có chắc chắn muốn thực hiện thao tác này không?</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirm-cancel-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">Hủy bỏ</button>
+                <button id="confirm-ok-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Cấu hình danh sách Loại dịch vụ -->
+    <div id="service-config-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 transform transition-all flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 bg-brand-50 text-brand-600 rounded-xl">
+                        <i data-lucide="settings-2" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800">Cấu hình loại dịch vụ</h3>
+                        <p class="text-xs text-slate-500">Thêm hoặc xóa dịch vụ của Giặt sấy Nhà Kin</p>
+                    </div>
+                </div>
+                <button onclick="closeServiceConfigModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Form thêm dịch vụ mới -->
+            <form id="add-service-form" class="mt-4 flex gap-2">
+                <input type="text" id="new-service-input" placeholder="Nhập tên dịch vụ mới..." required class="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm transition inline-flex items-center gap-1.5 shrink-0">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Thêm</span>
+                </button>
+            </form>
+
+            <!-- Danh sách dịch vụ hiện có -->
+            <div class="mt-4 flex-1 overflow-y-auto pr-1 space-y-2" id="service-config-list">
+                <!-- Render bằng JS -->
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="resetDefaultServices()" class="text-xs font-medium text-slate-500 hover:text-brand-600 transition inline-flex items-center gap-1">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    Khôi phục mặc định
+                </button>
+                <button type="button" onclick="closeServiceConfigModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition">
+                    Xong
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header / Thanh điều hướng -->
+    <header class="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- Thương hiệu -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
+                    <i data-lucide="washing-machine" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        KIN Laundry
+                        <span class="hidden sm:inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+                            <i data-lucide="store" class="w-3 h-3"></i>
+                            Giặt sấy Nhà Kin
+                        </span>
+                    </h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">Hệ thống quản lý bảng kê & báo cáo doanh thu giặt sấy</p>
+                </div>
+            </div>
+
+            <!-- Thanh chuyển đổi 2 Tab (Desktop) -->
+            <nav class="hidden md:flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                <button id="tab-btn-bangke" onclick="switchTab('bangke')" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-white text-brand-700 shadow-sm transition cursor-pointer">
+                    <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                    <span>Bảng kê</span>
+                </button>
+                <button id="tab-btn-report" onclick="switchTab('report')" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    <span>Report</span>
+                </button>
+            </nav>
+
+            <!-- Các nút công cụ -->
+            <div class="flex items-center gap-2">
+                <button onclick="syncFromCloud(true)" id="sync-status-btn" class="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition cursor-pointer" title="Tải lại dữ liệu từ Google Sheets">
+                    <i id="sync-status-icon" data-lucide="cloud" class="w-4 h-4 text-brand-600"></i>
+                    <span id="sync-status-text" class="hidden xl:inline">Đồng bộ</span>
+                </button>
+                <button onclick="exportToCSV()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm" title="Xuất dữ liệu ra file Excel/CSV">
+                    <i data-lucide="download" class="w-4 h-4 text-brand-600"></i>
+                    <span class="hidden lg:inline">Xuất CSV</span>
+                </button>
+                <button onclick="confirmResetSampleData()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm" title="Khôi phục dữ liệu mẫu ban đầu">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4 text-slate-500"></i>
+                    <span class="hidden xl:inline">Dữ liệu mẫu</span>
+                </button>
+                <button onclick="confirmClearAllData()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-rose-600 bg-rose-50/70 border border-rose-200/70 hover:bg-rose-100 transition" title="Xóa toàn bộ dữ liệu">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span class="hidden xl:inline">Xóa hết</span>
+                </button>
+                <button onclick="goToAddOrder()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 shadow-sm shadow-brand-600/20 transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Thêm đơn</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Thanh chuyển đổi 2 Tab (Mobile & Tablet nhỏ) -->
+        <div class="md:hidden border-t border-slate-100 bg-slate-50/80 px-4 py-2 flex items-center justify-between gap-2">
+            <div class="grid grid-cols-2 w-full bg-slate-200/70 p-1 rounded-xl">
+                <button id="tab-btn-bangke-mobile" onclick="switchTab('bangke')" class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-700 shadow-sm transition">
+                    <i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i>
+                    <span>Bảng kê</span>
+                </button>
+                <button id="tab-btn-report-mobile" onclick="switchTab('report')" class="flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 transition">
+                    <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>
+                    <span>Report</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Nội dung chính -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- =================================================================== -->
+        <!-- TAB 1: BẢNG KÊ (MẶC ĐỊNH HIỂN THỊ)                                  -->
+        <!-- =================================================================== -->
+        <div id="view-bangke" class="space-y-6">
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+                <!-- Cột trái (4/12): Form thêm / chỉnh sửa đơn hàng giặt sấy -->
+                <div id="transaction-form-card" class="lg:col-span-4 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm lg:sticky lg:top-24">
+                    <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2.5">
+                            <div id="form-icon-box" class="p-2 rounded-xl bg-brand-50 text-brand-600">
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 id="form-title" class="text-base font-bold text-slate-800">Tạo đơn giặt sấy</h2>
+                                <p id="form-subtitle" class="text-xs text-slate-500">Đơn vị: <span class="font-semibold text-brand-700">Giặt sấy Nhà Kin</span></p>
+                            </div>
+                        </div>
+                        <button id="cancel-edit-btn" onclick="resetForm()" class="hidden text-xs font-medium text-slate-500 hover:text-rose-600 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 transition">
+                            Hủy sửa
+                        </button>
+                    </div>
+
+                    <form id="expense-form" class="space-y-4">
+                        <input type="hidden" id="edit-id" value="">
+
+                        <!-- Thông tin khách hàng: Tên khách hàng (Bắt buộc) & Số điện thoại -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                            <div>
+                                <label for="tx-customer" class="block text-xs font-semibold text-slate-700 mb-1.5">Tên khách hàng <span class="text-rose-500">*</span></label>
+                                <div class="relative">
+                                    <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                    <input type="text" id="tx-customer" required placeholder="VD: Chị Lan / Anh Minh" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                </div>
+                            </div>
+                            <div>
+                                <label for="tx-phone" class="block text-xs font-semibold text-slate-700 mb-1.5">Số điện thoại</label>
+                                <div class="relative">
+                                    <i data-lucide="phone" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                    <input type="tel" id="tx-phone" placeholder="VD: 0905 123 456" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ngày nhận & Ngày thanh toán / trả -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="tx-received-date" class="block text-xs font-semibold text-slate-700 mb-1.5">Ngày nhận đồ <span class="text-rose-500">*</span></label>
+                                <input type="date" id="tx-received-date" required class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                            </div>
+                            <div>
+                                <label for="tx-date" class="block text-xs font-semibold text-slate-700 mb-1.5">Ngày thanh toán <span class="text-rose-500">*</span></label>
+                                <input type="date" id="tx-date" required class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                            </div>
+                        </div>
+
+                        <!-- Loại dịch vụ (Có nút cấu hình) & Khối lượng -->
+                        <div class="grid grid-cols-12 gap-3">
+                            <div class="col-span-8">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label for="tx-service" class="block text-xs font-semibold text-slate-700">Loại dịch vụ <span class="text-rose-500">*</span></label>
+                                    <button type="button" onclick="openServiceConfigModal()" class="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-md transition" title="Thêm hoặc xóa loại dịch vụ">
+                                        <i data-lucide="settings" class="w-3 h-3"></i>
+                                        <span>Cấu hình</span>
+                                    </button>
+                                </div>
+                                <select id="tx-service" required class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                    <!-- Render tự động từ danh sách dịch vụ -->
+                                </select>
+                            </div>
+                            <div class="col-span-4">
+                                <label for="tx-weight" class="block text-xs font-semibold text-slate-700 mb-1.5">Số kg</label>
+                                <input type="number" id="tx-weight" step="0.1" min="0" placeholder="5.5" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                            </div>
+                        </div>
+
+                        <!-- Số tiền thanh toán (VNĐ) -->
+                        <div>
+                            <label for="tx-amount" class="block text-xs font-semibold text-slate-700 mb-1.5">Thành tiền (VNĐ) <span class="text-rose-500">*</span></label>
+                            <div class="relative">
+                                <input type="text" id="tx-amount" inputmode="numeric" required placeholder="VD: 65,000" class="w-full pl-3.5 pr-12 py-2.5 rounded-xl border border-slate-200 text-base font-bold text-brand-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">VNĐ</span>
+                            </div>
+                            <!-- Nút chọn nhanh mệnh giá phổ biến -->
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                <button type="button" onclick="setQuickAmount(30000)" class="px-2 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 transition">30k</button>
+                                <button type="button" onclick="setQuickAmount(50000)" class="px-2 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 transition">50k</button>
+                                <button type="button" onclick="setQuickAmount(80000)" class="px-2 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 transition">80k</button>
+                                <button type="button" onclick="setQuickAmount(120000)" class="px-2 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 transition">120k</button>
+                                <button type="button" onclick="setQuickAmount(150000)" class="px-2 py-1 text-[11px] font-medium rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-600 transition">150k</button>
+                            </div>
+                        </div>
+
+                        <!-- Phương thức thanh toán & Trạng thái -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="tx-method" class="block text-xs font-semibold text-slate-700 mb-1.5">Phương thức</label>
+                                <select id="tx-method" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                    <option value="Chuyển khoản / QR">Chuyển khoản / QR</option>
+                                    <option value="Tiền mặt">Tiền mặt</option>
+                                    <option value="Ví điện tử MoMo/ZaloPay">Ví MoMo / ZaloPay</option>
+                                    <option value="Thẻ">Thẻ ngân hàng</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="tx-status" class="block text-xs font-semibold text-slate-700 mb-1.5">Trạng thái</label>
+                                <select id="tx-status" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                    <option value="Đã thanh toán">Đã thanh toán</option>
+                                    <option value="Chờ thanh toán">Chờ thanh toán</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Ghi chú -->
+                        <div>
+                            <label for="tx-note" class="block text-xs font-semibold text-slate-700 mb-1.5">Ghi chú chi tiết</label>
+                            <textarea id="tx-note" rows="2" placeholder="VD: Giặt 2 bộ ga giường + phân loại đồ trắng..." class="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition resize-none"></textarea>
+                        </div>
+
+                        <!-- Nút Submit -->
+                        <button type="submit" id="submit-btn" class="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-md shadow-brand-600/20 flex items-center justify-center gap-2 transition cursor-pointer">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                            <span id="submit-btn-text">Lưu đơn giặt sấy</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Cột phải (8/12): Bảng kê đơn hàng & Bộ lọc thông minh -->
+                <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
+                    <!-- Header Bảng + Bộ lọc -->
+                    <div class="p-5 sm:p-6 border-b border-slate-100 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                    <i data-lucide="receipt" class="w-5 h-5 text-brand-600"></i>
+                                    Bảng kê đơn hàng — Giặt sấy Nhà Kin
+                                </h2>
+                                <p class="text-xs text-slate-500 mt-0.5">Theo dõi khách hàng, ngày nhận, dịch vụ và trạng thái thanh toán</p>
+                            </div>
+                            <div class="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl self-start sm:self-auto">
+                                Hiển thị: <span id="filtered-count" class="font-bold text-brand-700">0</span> đơn • Tổng: <span id="filtered-sum" class="font-bold text-slate-900">0 ₫</span>
+                            </div>
+                        </div>
+
+                        <!-- Thanh công cụ lọc -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            <!-- Tìm kiếm theo tên khách, SĐT, ghi chú -->
+                            <div class="relative sm:col-span-2 lg:col-span-1">
+                                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                <input type="text" id="filter-search" placeholder="Tên khách, SĐT, ghi chú..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                            </div>
+
+                            <!-- Lọc theo tháng/năm -->
+                            <div>
+                                <input type="month" id="filter-month" title="Lọc theo tháng/năm" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                            </div>
+
+                            <!-- Lọc theo loại dịch vụ -->
+                            <div>
+                                <select id="filter-service" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                    <option value="">Tất cả dịch vụ</option>
+                                </select>
+                            </div>
+
+                            <!-- Lọc theo trạng thái / phương thức -->
+                            <div class="flex gap-2">
+                                <select id="filter-status" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                                    <option value="">Mọi trạng thái</option>
+                                    <option value="Đã thanh toán">Đã thanh toán</option>
+                                    <option value="Chờ thanh toán">Chờ thanh toán</option>
+                                </select>
+                                <button onclick="resetFilters()" title="Xóa bộ lọc" class="px-2.5 py-2 rounded-xl border border-slate-200 text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition shrink-0">
+                                    <i data-lucide="filter-x" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bảng dữ liệu (Desktop) & Danh sách thẻ (Mobile) -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse hidden md:table">
+                            <thead>
+                                <tr class="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    <th class="py-3.5 px-4">Khách hàng</th>
+                                    <th class="py-3.5 px-4">Ngày nhận / TT</th>
+                                    <th class="py-3.5 px-4">Dịch vụ / KL</th>
+                                    <th class="py-3.5 px-4">Thanh toán</th>
+                                    <th class="py-3.5 px-4 text-right">Thành tiền</th>
+                                    <th class="py-3.5 px-4 text-center">Trạng thái</th>
+                                    <th class="py-3.5 px-4 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tx-table-body" class="divide-y divide-slate-100 text-sm">
+                                <!-- Dữ liệu được render bằng JS -->
+                            </tbody>
+                        </table>
+
+                        <!-- Danh sách dạng thẻ cho thiết bị di động -->
+                        <div id="tx-mobile-list" class="md:hidden divide-y divide-slate-100">
+                            <!-- Dữ liệu mobile được render bằng JS -->
+                        </div>
+                    </div>
+
+                    <!-- Trạng thái rỗng -->
+                    <div id="empty-state" class="hidden py-14 px-4 text-center">
+                        <div class="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="inbox" class="w-7 h-7"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-700">Chưa có đơn hàng nào phù hợp</h3>
+                        <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Thử thay đổi bộ lọc tìm kiếm hoặc thêm đơn giặt sấy mới ở biểu mẫu bên cạnh.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- TAB 2: REPORT (BÁO CÁO & BIỂU ĐỒ THỐNG KÊ)                          -->
+        <!-- =================================================================== -->
+        <div id="view-report" class="hidden space-y-6 sm:space-y-8">
+
+            <!-- Bộ chọn tháng thống kê tổng quan -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 bg-brand-50 text-brand-600 rounded-xl">
+                        <i data-lucide="calendar-range" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-800">Báo cáo hoạt động — Giặt sấy Nhà Kin</h2>
+                        <p class="text-xs text-slate-500">Số liệu thẻ thống kê bên dưới tính theo tháng được chọn</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="dashboard-month-select" class="text-xs font-medium text-slate-600">Kỳ báo cáo:</label>
+                    <input type="month" id="dashboard-month-select" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition">
+                </div>
+            </div>
+
+            <!-- 1. Bảng điều khiển tổng quan (Dashboard Cards) -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <!-- Card 1: Tổng doanh thu tháng -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition relative overflow-hidden">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Doanh thu tháng này</p>
+                            <h3 id="stat-month-cost" class="text-2xl font-bold text-slate-900 mt-1.5">0 ₫</h3>
+                        </div>
+                        <div class="p-2.5 bg-brand-50 text-brand-600 rounded-xl">
+                            <i data-lucide="wallet" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between text-xs">
+                        <span id="stat-month-diff" class="font-medium text-slate-500">So với tháng trước: --</span>
+                        <span id="stat-unpaid-badge" class="hidden px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">0 chờ TT</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Số đơn giặt sấy -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Số đơn trong tháng</p>
+                            <h3 id="stat-month-count" class="text-2xl font-bold text-slate-900 mt-1.5">0 đơn</h3>
+                        </div>
+                        <div class="p-2.5 bg-sky-50 text-sky-600 rounded-xl">
+                            <i data-lucide="repeat" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs text-slate-500">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 mr-1.5 text-sky-500 shrink-0"></i>
+                        <span id="stat-top-service" class="truncate">Phổ biến: Chưa có</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Giá trị trung bình / đơn -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Trung bình mỗi đơn</p>
+                            <h3 id="stat-avg-cost" class="text-2xl font-bold text-slate-900 mt-1.5">0 ₫</h3>
+                        </div>
+                        <div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <i data-lucide="calculator" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs text-slate-500">
+                        <i data-lucide="scale" class="w-3.5 h-3.5 mr-1.5 text-indigo-500 shrink-0"></i>
+                        <span id="stat-month-weight">Tổng khối lượng: 0 kg</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Tổng tích lũy toàn thời gian -->
+                <div class="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-5 text-white shadow-md shadow-brand-600/15">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-brand-100">Tổng tích lũy toàn kỳ</p>
+                            <h3 id="stat-all-time-cost" class="text-2xl font-bold text-white mt-1.5">0 ₫</h3>
+                        </div>
+                        <div class="p-2.5 bg-white/15 text-white rounded-xl backdrop-blur-sm">
+                            <i data-lucide="piggy-bank" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between text-xs text-brand-100">
+                        <span id="stat-all-time-count">Tổng cộng: 0 đơn</span>
+                        <span id="stat-all-time-weight">0 kg</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Biểu đồ thống kê trực quan (Chart.js) -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Biểu đồ xu hướng doanh thu (Cột/Đường) -->
+                <div class="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="bar-chart-3" class="w-5 h-5 text-brand-600"></i>
+                                Xu hướng doanh thu giặt sấy
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Theo dõi biến động doanh thu qua các kỳ</p>
+                        </div>
+                        <div class="inline-flex rounded-xl bg-slate-100 p-1 self-start">
+                            <button id="chart-mode-month" onclick="setTrendMode('month')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-700 shadow-sm transition">12 tháng gần nhất</button>
+                            <button id="chart-mode-week" onclick="setTrendMode('week')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition">8 tuần gần nhất</button>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 min-h-[280px] w-full">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Biểu đồ phân bổ theo loại dịch vụ (Doughnut) -->
+                <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
+                    <div class="mb-4">
+                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="w-5 h-5 text-brand-600"></i>
+                            Cơ cấu loại dịch vụ
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Tỷ trọng doanh thu theo từng nhóm dịch vụ</p>
+                    </div>
+                    <div class="relative flex-1 min-h-[220px] flex items-center justify-center">
+                        <canvas id="serviceChart"></canvas>
+                        <div id="service-chart-empty" class="hidden text-center text-xs text-slate-400">
+                            Chưa có dữ liệu để hiển thị biểu đồ
+                        </div>
+                    </div>
+                    <div id="service-legend" class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs"></div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200/80 py-5 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+            <p>© 2026 <strong>KIN Laundry</strong> — Hệ thống quản lý tiệm <strong>Giặt sấy Nhà Kin</strong>.</p>
+            <p class="flex items-center gap-1.5">
+                <i data-lucide="cloud-check" class="w-3.5 h-3.5 text-brand-600"></i>
+                Đồng bộ Google Apps Script & lưu đệm cục bộ (localStorage).
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // =========================================================================
+        // 0. CẤU HÌNH GOOGLE APPS SCRIPT
+        // =========================================================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwL97Dgzp6t9YCVsAtooRU5KRaz6z2h30wtRtPZm2BeBpA74bblAXv8HrVTkeAz6MNI/exec';
+
+        async function luuDuLieu(dataObj) {
+            const res = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(dataObj)
+            });
+            return await res.json();
+        }
+
+        async function taiDuLieu() {
+            const res = await fetch(SCRIPT_URL);
+            return await res.json();
+        }
+
+        function isScriptConfigured() {
+            return Boolean(SCRIPT_URL && !SCRIPT_URL.includes('YOUR_WEB_APP_URL'));
+        }
+
+        function setSyncIndicator(state, labelText) {
+            const btn = document.getElementById('sync-status-btn');
+            const textEl = document.getElementById('sync-status-text');
+            if (!btn || !textEl) return;
+
+            if (state === 'syncing') {
+                textEl.textContent = labelText || 'Đang đồng bộ...';
+                btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium text-brand-700 bg-brand-50 border border-brand-200 transition cursor-pointer';
+            } else if (state === 'offline') {
+                textEl.textContent = labelText || 'Chỉ lưu máy';
+                btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition cursor-pointer';
+            } else {
+                textEl.textContent = labelText || 'Đã đồng bộ';
+                btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer';
+            }
+        }
+
+        function extractTransactionsList(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (payload && Array.isArray(payload.data)) return payload.data;
+            if (payload && Array.isArray(payload.transactions)) return payload.transactions;
+            if (payload && Array.isArray(payload.rows)) return payload.rows;
+            return null;
+        }
+
+        // =========================================================================
+        // 1. KHỞI TẠO DỮ LIỆU & CẤU HÌNH
+        // =========================================================================
+        const STORAGE_KEY = 'kin_laundry_transactions_v1';
+        const SERVICES_STORAGE_KEY = 'kin_laundry_services_v1';
+        const DEFAULT_SHOP_NAME = 'Giặt sấy Nhà Kin';
+
+        const DEFAULT_SERVICES = [
+            'Giặt sấy theo kg',
+            'Giặt sấy lấy liền',
+            'Giặt chăn mền / rèm',
+            'Giặt hấp / vest',
+            'Giặt giày / đồ đặc biệt',
+            'Khác'
+        ];
+
+        // Bảng màu dự phòng tự động gán cho các dịch vụ mới
+        const COLOR_PALETTE = [
+            '#0284c7', // Brand 600
+            '#0ea5e9', // Sky 500
+            '#6366f1', // Indigo 500
+            '#8b5cf6', // Violet 500
+            '#14b8a6', // Teal 500
+            '#f59e0b', // Amber 500
+            '#ec4899', // Pink 500
+            '#10b981', // Emerald 500
+            '#f97316', // Orange 500
+            '#64748b'  // Slate 500
+        ];
+
+        let servicesList = [];
+        let transactions = [];
+        let trendChartInstance = null;
+        let serviceChartInstance = null;
+        let trendMode = 'month'; // 'month' | 'week'
+        let activeTab = 'bangke'; // 'bangke' | 'report'
+
+        function getServiceColor(serviceName) {
+            const idx = servicesList.indexOf(serviceName);
+            if (idx !== -1) {
+                return COLOR_PALETTE[idx % COLOR_PALETTE.length];
+            }
+            // Hash đơn giản nếu dịch vụ đã bị xóa khỏi danh sách nhưng vẫn còn trong lịch sử
+            let hash = 0;
+            const safeName = String(serviceName || '');
+            for (let i = 0; i < safeName.length; i++) {
+                hash = safeName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+        }
+
+        // Quản lý danh sách dịch vụ trong localStorage
+        function loadServices() {
+            try {
+                const raw = localStorage.getItem(SERVICES_STORAGE_KEY);
+                if (raw === null) {
+                    servicesList = [...DEFAULT_SERVICES];
+                    saveServices();
+                } else {
+                    const parsed = JSON.parse(raw);
+                    servicesList = Array.isArray(parsed) && parsed.length > 0 ? parsed : [...DEFAULT_SERVICES];
+                }
+            } catch (e) {
+                servicesList = [...DEFAULT_SERVICES];
+            }
+        }
+
+        function saveServices() {
+            try {
+                localStorage.setItem(SERVICES_STORAGE_KEY, JSON.stringify(servicesList));
+            } catch (e) {
+                showToast('Không thể lưu cấu hình dịch vụ!', 'error');
+            }
+        }
+
+        // Đồng bộ danh sách dịch vụ ra các thẻ <select>
+        function renderServiceDropdowns() {
+            const formSelect = document.getElementById('tx-service');
+            const filterSelect = document.getElementById('filter-service');
+
+            const currentFormVal = formSelect.value;
+            const currentFilterVal = filterSelect.value;
+
+            formSelect.innerHTML = servicesList
+                .map(srv => `<option value="${srv}">${srv}</option>`)
+                .join('');
+
+            // Nếu đang sửa đơn có dịch vụ cũ không còn trong danh sách, vẫn giữ tùy chọn đó để tránh mất dữ liệu
+            if (currentFormVal && !servicesList.includes(currentFormVal)) {
+                const opt = document.createElement('option');
+                opt.value = currentFormVal;
+                opt.textContent = `${currentFormVal} (Đã xóa khỏi cấu hình)`;
+                formSelect.appendChild(opt);
+                formSelect.value = currentFormVal;
+            } else if (currentFormVal) {
+                formSelect.value = currentFormVal;
+            }
+
+            filterSelect.innerHTML = `<option value="">Tất cả dịch vụ</option>` +
+                servicesList.map(srv => `<option value="${srv}">${srv}</option>`).join('');
+
+            if (currentFilterVal) {
+                filterSelect.value = currentFilterVal;
+            }
+        }
+
+        // Mở / Đóng Modal cấu hình dịch vụ
+        function openServiceConfigModal() {
+            renderServiceConfigList();
+            const modal = document.getElementById('service-config-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('new-service-input').focus();
+        }
+
+        function closeServiceConfigModal() {
+            const modal = document.getElementById('service-config-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderServiceConfigList() {
+            const container = document.getElementById('service-config-list');
+            container.innerHTML = servicesList.map((srv, index) => {
+                const color = getServiceColor(srv);
+                const canDelete = servicesList.length > 1;
+                return `
+                    <div class="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200/70">
+                        <div class="flex items-center gap-2.5 truncate">
+                            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${color}"></span>
+                            <span class="text-sm font-medium text-slate-800 truncate">${srv}</span>
+                        </div>
+                        ${canDelete ? `
+                            <button type="button" onclick="removeServiceItem(${index})" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0" title="Xóa dịch vụ này">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        ` : `<span class="text-[11px] text-slate-400 italic">Tối thiểu 1</span>`}
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons({ root: container });
+        }
+
+        document.getElementById('add-service-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-service-input');
+            const name = input.value.trim();
+            if (!name) return;
+
+            if (servicesList.some(s => s.toLowerCase() === name.toLowerCase())) {
+                showToast('Tên dịch vụ này đã tồn tại trong danh sách!', 'error');
+                return;
+            }
+
+            servicesList.push(name);
+            saveServices();
+            renderServiceConfigList();
+            renderServiceDropdowns();
+            document.getElementById('tx-service').value = name;
+            input.value = '';
+            showToast(`Đã thêm dịch vụ "${name}"`);
+        });
+
+        function removeServiceItem(index) {
+            if (servicesList.length <= 1) {
+                showToast('Cần giữ lại ít nhất 1 loại dịch vụ!', 'error');
+                return;
+            }
+            const removed = servicesList[index];
+            servicesList.splice(index, 1);
+            saveServices();
+            renderServiceConfigList();
+            renderServiceDropdowns();
+            if (activeTab === 'report') {
+                renderServiceChart();
+            }
+            showToast(`Đã xóa dịch vụ "${removed}"`);
+        }
+
+        function resetDefaultServices() {
+            servicesList = [...DEFAULT_SERVICES];
+            saveServices();
+            renderServiceConfigList();
+            renderServiceDropdowns();
+            if (activeTab === 'report') {
+                renderServiceChart();
+            }
+            showToast('Đã khôi phục danh sách dịch vụ mặc định!');
+        }
+
+        // =========================================================================
+        // 2. CHUYỂN ĐỔI TAB (BẢNG KÊ <-> REPORT)
+        // =========================================================================
+        function switchTab(tabName) {
+            activeTab = tabName;
+            const viewBangKe = document.getElementById('view-bangke');
+            const viewReport = document.getElementById('view-report');
+
+            const btnBangKe = document.getElementById('tab-btn-bangke');
+            const btnReport = document.getElementById('tab-btn-report');
+            const btnBangKeMob = document.getElementById('tab-btn-bangke-mobile');
+            const btnReportMob = document.getElementById('tab-btn-report-mobile');
+
+            const activeDesktopClass = 'flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold bg-white text-brand-700 shadow-sm transition cursor-pointer';
+            const inactiveDesktopClass = 'flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 transition cursor-pointer';
+
+            const activeMobileClass = 'flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-700 shadow-sm transition';
+            const inactiveMobileClass = 'flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 transition';
+
+            if (tabName === 'bangke') {
+                viewBangKe.classList.remove('hidden');
+                viewReport.classList.add('hidden');
+
+                btnBangKe.className = activeDesktopClass;
+                btnReport.className = inactiveDesktopClass;
+                btnBangKeMob.className = activeMobileClass;
+                btnReportMob.className = inactiveMobileClass;
+            } else {
+                viewBangKe.classList.add('hidden');
+                viewReport.classList.remove('hidden');
+
+                btnReport.className = activeDesktopClass;
+                btnBangKe.className = inactiveDesktopClass;
+                btnReportMob.className = activeMobileClass;
+                btnBangKeMob.className = inactiveMobileClass;
+
+                // Cập nhật và render lại biểu đồ khi tab Report hiển thị (đảm bảo kích thước canvas chuẩn)
+                updateDashboard();
+                renderTrendChart();
+                renderServiceChart();
+            }
+        }
+
+        function goToAddOrder() {
+            if (activeTab !== 'bangke') {
+                switchTab('bangke');
+            }
+            scrollToForm();
+        }
+
+        // =========================================================================
+        // 3. DỮ LIỆU MẪU, LOCALSTORAGE & ĐỒNG BỘ GOOGLE APPS SCRIPT
+        // =========================================================================
+        function generateSampleData() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+
+            const formatYMD = (y, m, d) => {
+                const dateObj = new Date(y, m, d);
+                const yy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                return `${yy}-${mm}-${dd}`;
+            };
+
+            return [
+                {
+                    id: 'tx_' + Date.now() + '_1',
+                    customerName: 'Chị Nguyễn Thảo Vy',
+                    phone: '0905 234 891',
+                    receivedDate: formatYMD(year, month, Math.max(1, Math.min(now.getDate(), 22) - 1)),
+                    date: formatYMD(year, month, Math.min(now.getDate(), 22)),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt sấy theo kg',
+                    weight: 6.5,
+                    amount: 78000,
+                    method: 'Chuyển khoản / QR',
+                    status: 'Đã thanh toán',
+                    note: 'Quần áo đi làm cả tuần + khăn tắm'
+                },
+                {
+                    id: 'tx_' + Date.now() + '_2',
+                    customerName: 'Anh Trần Quốc Bảo',
+                    phone: '0914 789 320',
+                    receivedDate: formatYMD(year, month, Math.max(1, Math.min(now.getDate(), 15) - 1)),
+                    date: formatYMD(year, month, Math.min(now.getDate(), 15)),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt chăn mền / rèm',
+                    weight: 4.2,
+                    amount: 120000,
+                    method: 'Tiền mặt',
+                    status: 'Đã thanh toán',
+                    note: 'Giặt 1 chăn bông lớn + 2 vỏ gối'
+                },
+                {
+                    id: 'tx_' + Date.now() + '_3',
+                    customerName: 'Bạn Lê Hoàng Nam',
+                    phone: '0988 456 112',
+                    receivedDate: formatYMD(year, month, Math.min(now.getDate(), 8)),
+                    date: formatYMD(year, month, Math.min(now.getDate(), 8)),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt giày / đồ đặc biệt',
+                    weight: null,
+                    amount: 90000,
+                    method: 'Ví điện tử MoMo/ZaloPay',
+                    status: 'Chờ thanh toán',
+                    note: 'Vệ sinh 2 đôi sneaker trắng, hẹn chiều lấy'
+                },
+                {
+                    id: 'tx_' + Date.now() + '_4',
+                    customerName: 'Cô Phạm Thị Hoa',
+                    phone: '0935 612 908',
+                    receivedDate: formatYMD(year, month, 2),
+                    date: formatYMD(year, month, 2),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt sấy lấy liền',
+                    weight: 3.5,
+                    amount: 55000,
+                    method: 'Chuyển khoản / QR',
+                    status: 'Đã thanh toán',
+                    note: 'Giặt gấp đồ công tác'
+                },
+                // Tháng trước (month - 1)
+                {
+                    id: 'tx_' + Date.now() + '_5',
+                    customerName: 'Chị Nguyễn Thảo Vy',
+                    phone: '0905 234 891',
+                    receivedDate: formatYMD(year, month - 1, 23),
+                    date: formatYMD(year, month - 1, 24),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt sấy theo kg',
+                    weight: 7.0,
+                    amount: 84000,
+                    method: 'Chuyển khoản / QR',
+                    status: 'Đã thanh toán',
+                    note: 'Đồ mặc hàng ngày'
+                },
+                {
+                    id: 'tx_' + Date.now() + '_6',
+                    customerName: 'Anh Đặng Minh Tuấn',
+                    phone: '0903 998 441',
+                    receivedDate: formatYMD(year, month - 1, 13),
+                    date: formatYMD(year, month - 1, 14),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt hấp / vest',
+                    weight: 1.8,
+                    amount: 160000,
+                    method: 'Thẻ',
+                    status: 'Đã thanh toán',
+                    note: 'Giặt hấp 2 bộ vest dự tiệc'
+                },
+                {
+                    id: 'tx_' + Date.now() + '_7',
+                    customerName: 'Chị Võ Thu Hà',
+                    phone: '0977 321 654',
+                    receivedDate: formatYMD(year, month - 1, 5),
+                    date: formatYMD(year, month - 1, 5),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt sấy theo kg',
+                    weight: 5.0,
+                    amount: 60000,
+                    method: 'Tiền mặt',
+                    status: 'Đã thanh toán',
+                    note: 'Giặt sấy thơm tinh dầu'
+                },
+                // 2 tháng trước (month - 2)
+                {
+                    id: 'tx_' + Date.now() + '_8',
+                    customerName: 'Anh Trần Quốc Bảo',
+                    phone: '0914 789 320',
+                    receivedDate: formatYMD(year, month - 2, 18),
+                    date: formatYMD(year, month - 2, 19),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt chăn mền / rèm',
+                    weight: 8.5,
+                    amount: 195000,
+                    method: 'Chuyển khoản / QR',
+                    status: 'Đã thanh toán',
+                    note: 'Giặt toàn bộ rèm cửa phòng khách'
+                },
+                {
+                    id: 'tx_' + Date.now() + '_9',
+                    customerName: 'Bạn Lê Hoàng Nam',
+                    phone: '0988 456 112',
+                    receivedDate: formatYMD(year, month - 2, 7),
+                    date: formatYMD(year, month - 2, 7),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt sấy theo kg',
+                    weight: 6.0,
+                    amount: 72000,
+                    method: 'Ví điện tử MoMo/ZaloPay',
+                    status: 'Đã thanh toán',
+                    note: 'Quần áo tuần'
+                },
+                // 3 tháng trước (month - 3)
+                {
+                    id: 'tx_' + Date.now() + '_10',
+                    customerName: 'Cô Phạm Thị Hoa',
+                    phone: '0935 612 908',
+                    receivedDate: formatYMD(year, month - 3, 18),
+                    date: formatYMD(year, month - 3, 18),
+                    shop: DEFAULT_SHOP_NAME,
+                    service: 'Giặt sấy theo kg',
+                    weight: 5.5,
+                    amount: 66000,
+                    method: 'Tiền mặt',
+                    status: 'Đã thanh toán',
+                    note: 'Quần áo tuần'
+                }
+            ];
+        }
+
+        function normalizeTransactionItem(item, index = 0) {
+            const safeItem = item && typeof item === 'object' ? item : {};
+            const rawWeight = safeItem.weight !== undefined ? safeItem.weight : safeItem.soKg;
+            const parsedWeight = (rawWeight === '' || rawWeight === undefined || rawWeight === null)
+                ? null
+                : (Number.isNaN(Number(rawWeight)) ? null : Number(rawWeight));
+
+            const rawAmount = safeItem.amount !== undefined
+                ? safeItem.amount
+                : (safeItem.thanhTien !== undefined ? safeItem.thanhTien : 0);
+            const parsedAmount = Number(String(rawAmount).replace(/[^\d.-]/g, '')) || 0;
+
+            const normalizedDate = String(safeItem.date || safeItem.ngayThanhToan || getTodayYMD()).slice(0, 10);
+            const normalizedReceivedDate = String(
+                safeItem.receivedDate || safeItem.ngayNhan || normalizedDate
+            ).slice(0, 10);
+
+            const rawStatus = String(safeItem.status || safeItem.trangThai || 'Đã thanh toán').trim();
+            const normalizedStatus = rawStatus === 'Chờ thanh toán' ? 'Chờ thanh toán' : 'Đã thanh toán';
+
+            return {
+                id: String(safeItem.id || `tx_remote_${Date.now()}_${index}`),
+                customerName: String(safeItem.customerName || safeItem.tenKhachHang || safeItem.customer || 'Khách lẻ').trim(),
+                phone: String(safeItem.phone || safeItem.soDienThoai || '').trim(),
+                receivedDate: normalizedReceivedDate,
+                date: normalizedDate,
+                shop: String(safeItem.shop || safeItem.donVi || DEFAULT_SHOP_NAME).trim(),
+                service: String(safeItem.service || safeItem.dichVu || safeItem.loaiDichVu || 'Khác').trim(),
+                weight: parsedWeight,
+                amount: parsedAmount,
+                method: String(safeItem.method || safeItem.phuongThuc || 'Tiền mặt').trim(),
+                status: normalizedStatus,
+                note: String(safeItem.note || safeItem.ghiChu || '').trim()
+            };
+        }
+
+        function loadData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw === null) {
+                    transactions = generateSampleData();
+                    saveLocalOnly();
+                } else {
+                    const parsed = JSON.parse(raw) || [];
+                    transactions = Array.isArray(parsed)
+                        ? parsed.map((item, idx) => normalizeTransactionItem(item, idx))
+                        : [];
+                }
+            } catch (e) {
+                console.error('Lỗi đọc localStorage:', e);
+                transactions = [];
+            }
+        }
+
+        function saveLocalOnly() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+            } catch (e) {
+                showToast('Không thể lưu dữ liệu vào trình duyệt!', 'error');
+            }
+        }
+
+        async function pushCloudAction(action, payload = {}) {
+            saveLocalOnly();
+            if (!isScriptConfigured()) {
+                setSyncIndicator('offline', 'Chỉ lưu máy');
+                return null;
+            }
+            setSyncIndicator('syncing', 'Đang lưu...');
+            try {
+                const resJson = await luuDuLieu({
+                    action,
+                    shop: DEFAULT_SHOP_NAME,
+                    ...payload
+                });
+                if (resJson && resJson.ok === false) {
+                    throw new Error(resJson.error || 'Lỗi từ Google Apps Script');
+                }
+                setSyncIndicator('synced', 'Đã đồng bộ');
+                return resJson;
+            } catch (err) {
+                console.error('Lỗi lưu Google Apps Script:', err);
+                setSyncIndicator('offline', 'Lỗi đồng bộ');
+                showToast('Đã lưu trên máy, nhưng chưa đồng bộ được lên Sheets!', 'error');
+                return null;
+            }
+        }
+
+        async function syncFromCloud(showNotify = false) {
+            if (!isScriptConfigured()) {
+                setSyncIndicator('offline', 'Chưa cấu hình URL');
+                if (showNotify) {
+                    showToast('Hãy cập nhật SCRIPT_URL để đồng bộ Google Sheets.', 'info');
+                }
+                return;
+            }
+            setSyncIndicator('syncing', 'Đang tải...');
+            try {
+                const resJson = await taiDuLieu();
+                const remoteList = extractTransactionsList(resJson);
+                if (Array.isArray(remoteList)) {
+                    transactions = remoteList.map((item, idx) => normalizeTransactionItem(item, idx));
+                    saveLocalOnly();
+                    refreshAllViews();
+                    setSyncIndicator('synced', 'Đã đồng bộ');
+                    if (showNotify) {
+                        showToast(`Đã đồng bộ ${transactions.length} đơn từ Google Sheets!`);
+                    }
+                } else {
+                    setSyncIndicator('synced', 'Đã đồng bộ');
+                    if (showNotify) {
+                        showToast('Đã kết nối Apps Script thành công.');
+                    }
+                }
+            } catch (err) {
+                console.error('Lỗi tải dữ liệu từ Apps Script:', err);
+                setSyncIndicator('offline', 'Dùng bản lưu máy');
+                if (showNotify) {
+                    showToast('Không tải được từ Google Sheets, đang dùng dữ liệu trên máy.', 'error');
+                }
+            }
+        }
+
+        // =========================================================================
+        // 4. CÁC HÀM TIỆN ÍCH ĐỊNH DẠNG & UI
+        // =========================================================================
+        function formatVND(amount) {
+            return new Intl.NumberFormat('vi-VN').format(Math.round(amount || 0)) + ' ₫';
+        }
+
+        function formatNumberInput(value) {
+            const digits = String(value).replace(/\D/g, '');
+            if (!digits) return '';
+            return new Intl.NumberFormat('en-US').format(parseInt(digits, 10));
+        }
+
+        function parseNumberInput(formattedValue) {
+            const digits = String(formattedValue).replace(/\D/g, '');
+            return digits ? parseInt(digits, 10) : 0;
+        }
+
+        function formatDateVN(ymd) {
+            if (!ymd) return '--';
+            const clean = String(ymd).slice(0, 10);
+            const [y, m, d] = clean.split('-');
+            if (!y || !m || !d) return ymd;
+            return `${d}/${m}/${y}`;
+        }
+
+        function getTodayYMD() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getCurrentYM() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            return `${y}-${m}`;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-slate-900 text-white' : (type === 'error' ? 'bg-rose-600 text-white' : 'bg-brand-600 text-white');
+            const iconName = type === 'success' ? 'check-circle-2' : (type === 'error' ? 'alert-circle' : 'info');
+
+            toast.className = `${bgClass} px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-xs sm:text-sm font-medium transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons({ root: toast });
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        function openConfirmModal(title, message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+
+            const okBtn = document.getElementById('confirm-ok-btn');
+            const cancelBtn = document.getElementById('confirm-cancel-btn');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+            };
+
+            okBtn.onclick = () => {
+                cleanup();
+                onConfirm();
+            };
+            cancelBtn.onclick = cleanup;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // =========================================================================
+        // 5. CẬP NHẬT DASHBOARD CARDS (TAB REPORT)
+        // =========================================================================
+        function updateDashboard() {
+            const selectedYM = document.getElementById('dashboard-month-select').value || getCurrentYM();
+            const [selYear, selMonth] = selectedYM.split('-').map(Number);
+
+            const prevDate = new Date(selYear, selMonth - 2, 1);
+            const prevYM = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+            const monthTxs = transactions.filter(t => t.date && t.date.startsWith(selectedYM));
+            const prevMonthTxs = transactions.filter(t => t.date && t.date.startsWith(prevYM));
+
+            const monthCost = monthTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            const prevMonthCost = prevMonthTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            const monthCount = monthTxs.length;
+            const avgCost = monthCount > 0 ? monthCost / monthCount : 0;
+            const monthWeight = monthTxs.reduce((sum, t) => sum + Number(t.weight || 0), 0);
+            const unpaidCount = monthTxs.filter(t => t.status === 'Chờ thanh toán').length;
+
+            // Toàn thời gian
+            const allCost = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+            const allCount = transactions.length;
+            const allWeight = transactions.reduce((sum, t) => sum + Number(t.weight || 0), 0);
+
+            // Dịch vụ phổ biến nhất trong tháng
+            let topService = 'Chưa có';
+            if (monthCount > 0) {
+                const counts = {};
+                monthTxs.forEach(t => {
+                    counts[t.service] = (counts[t.service] || 0) + 1;
+                });
+                topService = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+            }
+
+            document.getElementById('stat-month-cost').textContent = formatVND(monthCost);
+            document.getElementById('stat-month-count').textContent = `${monthCount} đơn`;
+            document.getElementById('stat-avg-cost').textContent = formatVND(avgCost);
+            document.getElementById('stat-month-weight').textContent = `Tổng khối lượng: ${monthWeight.toFixed(1)} kg`;
+            document.getElementById('stat-top-service').textContent = `Phổ biến: ${topService}`;
+
+            document.getElementById('stat-all-time-cost').textContent = formatVND(allCost);
+            document.getElementById('stat-all-time-count').textContent = `Tổng cộng: ${allCount} đơn`;
+            document.getElementById('stat-all-time-weight').textContent = `${allWeight.toFixed(1)} kg`;
+
+            const diffEl = document.getElementById('stat-month-diff');
+            if (prevMonthCost === 0 && monthCost === 0) {
+                diffEl.textContent = 'Chưa có dữ liệu so sánh';
+                diffEl.className = 'font-medium text-slate-400';
+            } else if (prevMonthCost === 0) {
+                diffEl.textContent = 'Tháng trước: 0 ₫';
+                diffEl.className = 'font-medium text-brand-600';
+            } else {
+                const pct = ((monthCost - prevMonthCost) / prevMonthCost) * 100;
+                const sign = pct > 0 ? '+' : '';
+                diffEl.textContent = `${sign}${pct.toFixed(0)}% so với tháng trước`;
+                diffEl.className = pct >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-amber-600';
+            }
+
+            const unpaidBadge = document.getElementById('stat-unpaid-badge');
+            if (unpaidCount > 0) {
+                unpaidBadge.textContent = `${unpaidCount} chờ TT`;
+                unpaidBadge.classList.remove('hidden');
+            } else {
+                unpaidBadge.classList.add('hidden');
+            }
+        }
+
+        // =========================================================================
+        // 6. BIỂU ĐỒ THỐNG KÊ (CHART.JS - TAB REPORT)
+        // =========================================================================
+        function setTrendMode(mode) {
+            trendMode = mode;
+            const btnMonth = document.getElementById('chart-mode-month');
+            const btnWeek = document.getElementById('chart-mode-week');
+
+            if (mode === 'month') {
+                btnMonth.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-700 shadow-sm transition';
+                btnWeek.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition';
+            } else {
+                btnWeek.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-brand-700 shadow-sm transition';
+                btnMonth.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition';
+            }
+            renderTrendChart();
+        }
+
+        function renderTrendChart() {
+            const canvas = document.getElementById('trendChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            let labels = [];
+            let dataValues = [];
+            let countValues = [];
+
+            const now = new Date();
+
+            if (trendMode === 'month') {
+                for (let i = 11; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    labels.push(`T${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`);
+
+                    const txs = transactions.filter(t => t.date && t.date.startsWith(ym));
+                    dataValues.push(txs.reduce((sum, t) => sum + Number(t.amount || 0), 0));
+                    countValues.push(txs.length);
+                }
+            } else {
+                const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+                const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1);
+
+                for (let w = 7; w >= 0; w--) {
+                    const start = new Date(currentMonday);
+                    start.setDate(currentMonday.getDate() - w * 7);
+                    const end = new Date(start);
+                    end.setDate(start.getDate() + 6);
+
+                    const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+                    const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+
+                    labels.push(`${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}`);
+
+                    const txs = transactions.filter(t => t.date >= startStr && t.date <= endStr);
+                    dataValues.push(txs.reduce((sum, t) => sum + Number(t.amount || 0), 0));
+                    countValues.push(txs.length);
+                }
+            }
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Doanh thu (VNĐ)',
+                            data: dataValues,
+                            backgroundColor: 'rgba(2, 132, 199, 0.85)',
+                            hoverBackgroundColor: '#0369a1',
+                            borderRadius: 8,
+                            barPercentage: 0.55,
+                            order: 2
+                        },
+                        {
+                            label: 'Xu hướng',
+                            data: dataValues,
+                            type: 'line',
+                            borderColor: '#38bdf8',
+                            backgroundColor: '#38bdf8',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.35,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            padding: 12,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        const idx = context.dataIndex;
+                                        return ` Doanh thu: ${formatVND(context.raw)} (${countValues[idx]} đơn)`;
+                                    }
+                                    return null;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: 'Inter', size: 11 },
+                                color: '#64748b'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            border: { display: false },
+                            grid: { color: '#f1f5f9' },
+                            ticks: {
+                                font: { family: 'Inter', size: 11 },
+                                color: '#64748b',
+                                callback: function(value) {
+                                    if (value >= 1000000) return (value / 1000000) + 'tr';
+                                    if (value >= 1000) return (value / 1000) + 'k';
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderServiceChart() {
+            const canvasEl = document.getElementById('serviceChart');
+            if (!canvasEl) return;
+            const ctx = canvasEl.getContext('2d');
+            const emptyEl = document.getElementById('service-chart-empty');
+            const legendEl = document.getElementById('service-legend');
+
+            if (serviceChartInstance) {
+                serviceChartInstance.destroy();
+            }
+
+            const totals = {};
+            transactions.forEach(t => {
+                const srv = t.service || 'Khác';
+                totals[srv] = (totals[srv] || 0) + Number(t.amount || 0);
+            });
+
+            const entries = Object.entries(totals).filter(([, val]) => val > 0).sort((a, b) => b[1] - a[1]);
+
+            if (entries.length === 0) {
+                canvasEl.classList.add('hidden');
+                emptyEl.classList.remove('hidden');
+                legendEl.innerHTML = '';
+                return;
+            }
+
+            canvasEl.classList.remove('hidden');
+            emptyEl.classList.add('hidden');
+
+            const labels = entries.map(e => e[0]);
+            const values = entries.map(e => e[1]);
+            const colors = labels.map(l => getServiceColor(l));
+            const grandTotal = values.reduce((a, b) => a + b, 0);
+
+            serviceChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '66%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            padding: 10,
+                            cornerRadius: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const pct = ((val / grandTotal) * 100).toFixed(1);
+                                    return ` ${formatVND(val)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            legendEl.innerHTML = entries.map(([label, val], idx) => {
+                const pct = Math.round((val / grandTotal) * 100);
+                return `
+                    <div class="flex items-center justify-between gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg">
+                        <div class="flex items-center gap-1.5 truncate">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${colors[idx]}"></span>
+                            <span class="truncate text-slate-700 font-medium" title="${label}">${label}</span>
+                        </div>
+                        <span class="text-slate-500 font-semibold shrink-0">${pct}%</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =========================================================================
+        // 7. QUẢN LÝ FORM ĐƠN HÀNG (TAB BẢNG KÊ)
+        // =========================================================================
+        function setQuickAmount(val) {
+            document.getElementById('tx-amount').value = formatNumberInput(val);
+        }
+
+        function scrollToForm() {
+            const formCard = document.getElementById('transaction-form-card');
+            formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('tx-customer').focus();
+        }
+
+        function resetForm() {
+            document.getElementById('expense-form').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('tx-received-date').value = getTodayYMD();
+            document.getElementById('tx-date').value = getTodayYMD();
+            document.getElementById('tx-status').value = 'Đã thanh toán';
+            renderServiceDropdowns();
+
+            document.getElementById('form-title').textContent = 'Tạo đơn giặt sấy';
+            document.getElementById('form-subtitle').innerHTML = 'Đơn vị: <span class="font-semibold text-brand-700">Giặt sấy Nhà Kin</span>';
+            document.getElementById('submit-btn-text').textContent = 'Lưu đơn giặt sấy';
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
+            document.getElementById('form-icon-box').className = 'p-2 rounded-xl bg-brand-50 text-brand-600';
+            document.getElementById('form-icon-box').innerHTML = '<i data-lucide="plus-circle" class="w-5 h-5"></i>';
+            lucide.createIcons({ root: document.getElementById('form-icon-box') });
+        }
+
+        function editTransaction(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            document.getElementById('edit-id').value = tx.id;
+            document.getElementById('tx-customer').value = tx.customerName || '';
+            document.getElementById('tx-phone').value = tx.phone || '';
+            document.getElementById('tx-received-date').value = tx.receivedDate || tx.date || getTodayYMD();
+            document.getElementById('tx-date').value = tx.date || getTodayYMD();
+            document.getElementById('tx-weight').value = tx.weight !== null && tx.weight !== undefined ? tx.weight : '';
+
+            // Đảm bảo dropdown có option dịch vụ này
+            const serviceSelect = document.getElementById('tx-service');
+            if (tx.service && !Array.from(serviceSelect.options).some(o => o.value === tx.service)) {
+                const opt = document.createElement('option');
+                opt.value = tx.service;
+                opt.textContent = tx.service;
+                serviceSelect.appendChild(opt);
+            }
+            serviceSelect.value = tx.service;
+
+            document.getElementById('tx-amount').value = formatNumberInput(tx.amount);
+            document.getElementById('tx-method').value = tx.method;
+            document.getElementById('tx-status').value = tx.status;
+            document.getElementById('tx-note').value = tx.note || '';
+
+            document.getElementById('form-title').textContent = 'Chỉnh sửa đơn hàng';
+            document.getElementById('form-subtitle').textContent = 'Cập nhật thông tin đơn giặt sấy đã lưu';
+            document.getElementById('submit-btn-text').textContent = 'Cập nhật đơn hàng';
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            document.getElementById('form-icon-box').className = 'p-2 rounded-xl bg-amber-50 text-amber-600';
+            document.getElementById('form-icon-box').innerHTML = '<i data-lucide="edit-3" class="w-5 h-5"></i>';
+            lucide.createIcons({ root: document.getElementById('form-icon-box') });
+
+            scrollToForm();
+        }
+
+        document.getElementById('expense-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const editId = document.getElementById('edit-id').value;
+            const customerName = document.getElementById('tx-customer').value.trim();
+            const phone = document.getElementById('tx-phone').value.trim();
+            const receivedDate = document.getElementById('tx-received-date').value;
+            const date = document.getElementById('tx-date').value;
+            const weightRaw = document.getElementById('tx-weight').value;
+            const weight = weightRaw !== '' ? parseFloat(weightRaw) : null;
+            const shop = DEFAULT_SHOP_NAME;
+            const service = document.getElementById('tx-service').value;
+            const amount = parseNumberInput(document.getElementById('tx-amount').value);
+            const method = document.getElementById('tx-method').value;
+            const status = document.getElementById('tx-status').value;
+            const note = document.getElementById('tx-note').value.trim();
+
+            if (!customerName || !receivedDate || !date || amount <= 0) {
+                showToast('Vui lòng nhập tên khách hàng, ngày nhận, ngày thanh toán và số tiền hợp lệ!', 'error');
+                return;
+            }
+
+            let targetTx = null;
+            let actionType = 'upsert';
+
+            if (editId) {
+                const idx = transactions.findIndex(t => t.id === editId);
+                if (idx !== -1) {
+                    transactions[idx] = {
+                        ...transactions[idx],
+                        customerName,
+                        phone,
+                        receivedDate,
+                        date,
+                        weight,
+                        shop,
+                        service,
+                        amount,
+                        method,
+                        status,
+                        note
+                    };
+                    targetTx = transactions[idx];
+                    actionType = 'update';
+                    showToast('Đã cập nhật đơn giặt sấy thành công!');
+                }
+            } else {
+                const newTx = {
+                    id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                    customerName,
+                    phone,
+                    receivedDate,
+                    date,
+                    weight,
+                    shop,
+                    service,
+                    amount,
+                    method,
+                    status,
+                    note
+                };
+                transactions.unshift(newTx);
+                targetTx = newTx;
+                actionType = 'create';
+                showToast('Đã lưu đơn giặt sấy mới!');
+            }
+
+            resetForm();
+            refreshAllViews();
+            await pushCloudAction(actionType, { item: targetTx, transactions });
+        });
+
+        document.getElementById('tx-amount').addEventListener('input', function(e) {
+            e.target.value = formatNumberInput(e.target.value);
+        });
+
+        // =========================================================================
+        // 8. BẢNG LỊCH SỬ ĐƠN HÀNG & BỘ LỌC THÔNG MINH
+        // =========================================================================
+        function getFilteredTransactions() {
+            const keyword = document.getElementById('filter-search').value.toLowerCase().trim();
+            const monthFilter = document.getElementById('filter-month').value;
+            const serviceFilter = document.getElementById('filter-service').value;
+            const statusFilter = document.getElementById('filter-status').value;
+
+            return transactions
+                .filter(tx => {
+                    if (monthFilter && (!tx.date || !tx.date.startsWith(monthFilter))) return false;
+                    if (serviceFilter && tx.service !== serviceFilter) return false;
+                    if (statusFilter && tx.status !== statusFilter) return false;
+                    if (keyword) {
+                        const hay = `${tx.customerName || ''} ${tx.phone || ''} ${tx.note || ''} ${tx.service}`.toLowerCase();
+                        if (!hay.includes(keyword)) return false;
+                    }
+                    return true;
+                })
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-month').value = '';
+            document.getElementById('filter-service').value = '';
+            document.getElementById('filter-status').value = '';
+            renderTransactionsTable();
+        }
+
+        async function togglePaymentStatus(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+            tx.status = tx.status === 'Đã thanh toán' ? 'Chờ thanh toán' : 'Đã thanh toán';
+            refreshAllViews();
+            showToast(`Đã chuyển sang trạng thái: ${tx.status}`);
+            await pushCloudAction('update', { item: tx, transactions });
+        }
+
+        function deleteTransaction(id) {
+            openConfirmModal(
+                'Xóa đơn giặt sấy',
+                'Bạn có chắc muốn xóa đơn hàng này khỏi bảng kê? Thao tác này không thể hoàn tác.',
+                async () => {
+                    transactions = transactions.filter(t => t.id !== id);
+                    refreshAllViews();
+                    showToast('Đã xóa đơn hàng khỏi bảng kê');
+                    await pushCloudAction('delete', { id, transactions });
+                }
+            );
+        }
+
+        function getMethodBadge(method) {
+            const safeMethod = String(method || '');
+            if (safeMethod.includes('Chuyển khoản') || safeMethod.includes('CK')) {
+                return `<span class="inline-flex items-center gap-1 text-xs text-slate-600"><i data-lucide="qr-code" class="w-3.5 h-3.5 text-brand-600"></i>CK / QR</span>`;
+            }
+            if (safeMethod.includes('Ví') || safeMethod.includes('MoMo') || safeMethod.includes('ZaloPay')) {
+                return `<span class="inline-flex items-center gap-1 text-xs text-slate-600"><i data-lucide="smartphone" class="w-3.5 h-3.5 text-pink-600"></i>Ví ĐT</span>`;
+            }
+            if (safeMethod.includes('Thẻ')) {
+                return `<span class="inline-flex items-center gap-1 text-xs text-slate-600"><i data-lucide="credit-card" class="w-3.5 h-3.5 text-indigo-600"></i>Thẻ</span>`;
+            }
+            return `<span class="inline-flex items-center gap-1 text-xs text-slate-600"><i data-lucide="banknote" class="w-3.5 h-3.5 text-emerald-600"></i>Tiền mặt</span>`;
+        }
+
+        function renderTransactionsTable() {
+            const list = getFilteredTransactions();
+            const tbody = document.getElementById('tx-table-body');
+            const mobileList = document.getElementById('tx-mobile-list');
+            const emptyState = document.getElementById('empty-state');
+
+            const totalSum = list.reduce((s, t) => s + Number(t.amount || 0), 0);
+            document.getElementById('filtered-count').textContent = list.length;
+            document.getElementById('filtered-sum').textContent = formatVND(totalSum);
+
+            if (list.length === 0) {
+                tbody.innerHTML = '';
+                mobileList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // Render bảng Desktop
+            tbody.innerHTML = list.map(tx => {
+                const isPaid = tx.status === 'Đã thanh toán';
+                const statusBtn = isPaid
+                    ? `<button onclick="togglePaymentStatus('${tx.id}')" title="Nhấn để đổi sang Chờ thanh toán" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-100 transition cursor-pointer">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Đã TT
+                       </button>`
+                    : `<button onclick="togglePaymentStatus('${tx.id}')" title="Nhấn để xác nhận Đã thanh toán" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 hover:bg-amber-100 transition cursor-pointer">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Chờ TT
+                       </button>`;
+
+                const dotColor = getServiceColor(tx.service);
+                const weightText = tx.weight ? `<span class="text-slate-400">• ${tx.weight} kg</span>` : '';
+                const customerName = tx.customerName || 'Khách lẻ';
+                const phoneDisplay = tx.phone ? `<span class="inline-flex items-center gap-1 text-xs text-slate-500"><i data-lucide="phone" class="w-3 h-3 text-slate-400"></i>${tx.phone}</span>` : '';
+
+                return `
+                    <tr class="hover:bg-slate-50/90 transition group">
+                        <td class="py-3.5 px-4 max-w-[210px]">
+                            <div class="font-semibold text-slate-800 truncate" title="${customerName}">${customerName}</div>
+                            <div class="flex flex-col gap-0.5 mt-0.5">
+                                ${phoneDisplay}
+                                ${tx.note ? `<span class="text-[11px] text-slate-400 truncate" title="${tx.note}">${tx.note}</span>` : ''}
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap text-xs">
+                            <div class="text-slate-700 font-medium" title="Ngày nhận đồ">Nhận: ${formatDateVN(tx.receivedDate || tx.date)}</div>
+                            <div class="text-slate-400 mt-0.5" title="Ngày thanh toán">TT: ${formatDateVN(tx.date)}</div>
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${dotColor}"></span>
+                                <span>${tx.service}</span>
+                                ${weightText}
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            ${getMethodBadge(tx.method)}
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap text-right font-bold text-slate-900">
+                            ${formatVND(tx.amount)}
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap text-center">
+                            ${statusBtn}
+                        </td>
+                        <td class="py-3.5 px-4 whitespace-nowrap text-right">
+                            <div class="inline-flex items-center justify-end gap-1">
+                                <button onclick="editTransaction('${tx.id}')" title="Chỉnh sửa" class="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteTransaction('${tx.id}')" title="Xóa" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Render danh sách thẻ Mobile
+            mobileList.innerHTML = list.map(tx => {
+                const isPaid = tx.status === 'Đã thanh toán';
+                const statusBadge = isPaid
+                    ? `<button onclick="togglePaymentStatus('${tx.id}')" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Đã thanh toán</button>`
+                    : `<button onclick="togglePaymentStatus('${tx.id}')" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Chờ thanh toán</button>`;
+
+                const customerName = tx.customerName || 'Khách lẻ';
+
+                return `
+                    <div class="p-4 space-y-2.5 hover:bg-slate-50 transition">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                    <span>${customerName}</span>
+                                    ${tx.phone ? `<span class="text-xs font-normal text-slate-500">(${tx.phone})</span>` : ''}
+                                </div>
+                                <div class="text-xs text-slate-500 mt-0.5">
+                                    Nhận: ${formatDateVN(tx.receivedDate || tx.date)} • TT: ${formatDateVN(tx.date)}
+                                </div>
+                                <div class="text-xs font-medium text-slate-700 mt-0.5">
+                                    ${tx.service} ${tx.weight ? `(${tx.weight} kg)` : ''}
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="font-bold text-brand-700 text-sm">${formatVND(tx.amount)}</div>
+                                <div class="mt-1">${statusBadge}</div>
+                            </div>
+                        </div>
+                        ${tx.note ? `<p class="text-xs text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg">${tx.note}</p>` : ''}
+                        <div class="flex items-center justify-between pt-1">
+                            <div>${getMethodBadge(tx.method)}</div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="editTransaction('${tx.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 bg-slate-100 hover:bg-brand-50 hover:text-brand-700">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i> Sửa
+                                </button>
+                                <button onclick="deleteTransaction('${tx.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // =========================================================================
+        // 9. XUẤT CSV & ĐẶT LẠI DỮ LIỆU MẪU
+        // =========================================================================
+        function exportToCSV() {
+            const list = getFilteredTransactions();
+            if (list.length === 0) {
+                showToast('Không có dữ liệu để xuất file!', 'error');
+                return;
+            }
+
+            const headers = [
+                'Đơn vị',
+                'Tên khách hàng',
+                'Số điện thoại',
+                'Ngày nhận',
+                'Ngày thanh toán',
+                'Loại dịch vụ',
+                'Khối lượng (kg)',
+                'Thành tiền (VNĐ)',
+                'Phương thức',
+                'Trạng thái',
+                'Ghi chú'
+            ];
+
+            const rows = list.map(t => [
+                `"${DEFAULT_SHOP_NAME}"`,
+                `"${(t.customerName || '').replace(/"/g, '""')}"`,
+                `"${(t.phone || '').replace(/"/g, '""')}"`,
+                t.receivedDate || t.date || '',
+                t.date || '',
+                `"${(t.service || '').replace(/"/g, '""')}"`,
+                t.weight !== null && t.weight !== undefined ? t.weight : '',
+                t.amount,
+                `"${(t.method || '').replace(/"/g, '""')}"`,
+                `"${(t.status || '').replace(/"/g, '""')}"`,
+                `"${(t.note || '').replace(/"/g, '""')}"`
+            ]);
+
+            const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `KIN_Laundry_BangKe_${getTodayYMD()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast(`Đã xuất ${list.length} đơn hàng ra file CSV!`);
+        }
+
+        function confirmResetSampleData() {
+            openConfirmModal(
+                'Khôi phục dữ liệu mẫu',
+                'Dữ liệu hiện tại sẽ được thay thế bằng bộ dữ liệu mẫu của Giặt sấy Nhà Kin để bạn trải nghiệm bảng kê và biểu đồ. Tiếp tục chứ?',
+                async () => {
+                    transactions = generateSampleData();
+                    resetForm();
+                    refreshAllViews();
+                    showToast('Đã khôi phục dữ liệu mẫu thành công!');
+                    await pushCloudAction('replace_all', { transactions });
+                }
+            );
+        }
+
+        function confirmClearAllData() {
+            openConfirmModal(
+                'Xóa toàn bộ dữ liệu',
+                'Tất cả lịch sử đơn hàng giặt sấy sẽ bị xóa sạch để bạn bắt đầu nhập liệu từ đầu. Bạn chắc chắn chứ?',
+                async () => {
+                    transactions = [];
+                    resetForm();
+                    refreshAllViews();
+                    showToast('Đã xóa toàn bộ dữ liệu!');
+                    await pushCloudAction('clear', { transactions: [] });
+                }
+            );
+        }
+
+        // =========================================================================
+        // 10. KHỞI CHẠY ỨNG DỤNG
+        // =========================================================================
+        function refreshAllViews() {
+            updateDashboard();
+            if (activeTab === 'report') {
+                renderTrendChart();
+                renderServiceChart();
+            }
+            renderTransactionsTable();
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Thiết lập ngày và tháng mặc định
+            document.getElementById('tx-received-date').value = getTodayYMD();
+            document.getElementById('tx-date').value = getTodayYMD();
+            document.getElementById('dashboard-month-select').value = getCurrentYM();
+
+            // Lắng nghe sự kiện bộ lọc
+            document.getElementById('dashboard-month-select').addEventListener('change', updateDashboard);
+            document.getElementById('filter-search').addEventListener('input', renderTransactionsTable);
+            document.getElementById('filter-month').addEventListener('change', renderTransactionsTable);
+            document.getElementById('filter-service').addEventListener('change', renderTransactionsTable);
+            document.getElementById('filter-status').addEventListener('change', renderTransactionsTable);
+
+            // Tải cấu hình dịch vụ & dữ liệu giao dịch từ máy trước để hiển thị tức thì
+            loadServices();
+            renderServiceDropdowns();
+            loadData();
+            refreshAllViews();
+            setSyncIndicator(isScriptConfigured() ? 'syncing' : 'offline', isScriptConfigured() ? 'Đang tải...' : 'Chưa cấu hình URL');
+            lucide.createIcons();
+
+            // Sau đó tải dữ liệu mới nhất từ Google Apps Script
+            await syncFromCloud(false);
+        });
+    </script>
+</body>
+</html>
